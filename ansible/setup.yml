@@ -1,0 +1,79 @@
+- hosts: localhost
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    # ---------------------------
+    # Docker
+    # ---------------------------
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+
+    # ---------------------------
+    # kubectl
+    # ---------------------------
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+
+    # ---------------------------
+    # Minikube (SAFE & VERIFIED)
+    # ---------------------------
+    - name: Check if Minikube is already installed
+      command: which minikube
+      register: minikube_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Download Minikube binary (only if missing)
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: '0755'
+      when: minikube_check.rc != 0
+
+    # ---------------------------
+    # Verification (VERY IMPORTANT)
+    # ---------------------------
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Verify kubectl installation
+      command: kubectl version --client
+      register: kubectl_version
+      changed_when: false
+
+    - name: Verify Minikube installation
+      command: minikube version
+      register: minikube_version
+      changed_when: false
+
+    - name: Show installed versions
+      debug:
+        msg:
+          - "{{ docker_version.stdout }}"
+          - "{{ kubectl_version.stdout }}"
+          - "{{ minikube_version.stdout }}"
