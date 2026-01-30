@@ -1,0 +1,40 @@
+---
+- name: Deploy MNIST ML Application to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    project_root: "{{ playbook_dir }}/.."
+    deployment_name: mnist-deployment
+    namespace_name: default
+
+  tasks:
+
+    - name: Check kubectl availability
+      command: kubectl version --client
+      changed_when: false
+
+    - name: Check Kubernetes cluster status
+      command: kubectl cluster-info
+      changed_when: false
+
+    - name: Apply Kubernetes Deployment
+      command: kubectl apply -f {{ project_root }}/k8s/deployment.yaml
+
+    - name: Apply Kubernetes Service
+      command: kubectl apply -f {{ project_root }}/k8s/service.yaml
+
+    - name: Restart deployment to pull latest image
+      command: kubectl rollout restart deployment {{ deployment_name }} -n {{ namespace_name }}
+
+    - name: Wait for rollout to complete
+      command: kubectl rollout status deployment {{ deployment_name }} -n {{ namespace_name }}
+
+    - name: Show pod status
+      command: kubectl get pods -n {{ namespace_name }}
+      changed_when: false
+
+    - name: Show service status
+      command: kubectl get svc -n {{ namespace_name }}
+      changed_when: false
